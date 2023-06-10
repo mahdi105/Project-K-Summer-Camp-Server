@@ -4,8 +4,7 @@ const cors = require('cors');
 require("dotenv").config();
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const port = process.env.PORT || 5000;
-
-// 
+const jwt = require('jsonwebtoken');
 
 // Middleware 
 app.use(cors());
@@ -43,6 +42,14 @@ async function run() {
     }
 }
 run().catch(console.dir);
+
+
+// Sign A JSON WEB TOKEN
+app.post('/jwt', (req, res) => {
+    const data = req.body;
+    const token = jwt.sign(data, process.env.TOKEN_SECRET_KEY, {expiresIn: '1d'});
+    res.send(token)
+})
 
 // Home API
 app.get('/', (req, res) => {

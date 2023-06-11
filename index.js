@@ -38,7 +38,10 @@ async function run() {
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
         // Collection of Database
+        // Users Database
         const userCollection = client.db('usersDb').collection('users');
+        // Instructors DB
+        const instructorsCollection = client.db('instructorsDb').collection('instructors');
 
         app.post('/users', async(req, res) => {
             const user = req.body;
@@ -48,6 +51,12 @@ async function run() {
                 return res.send({exist: true, message:"User is already stored"});
             }
             const result = await userCollection.insertOne(user);
+            res.send(result);
+        })
+
+        // GET == All instructors
+        app.get('/instructors', async(req, res) => {
+            const result = await instructorsCollection.find().toArray();
             res.send(result);
         })
 

@@ -89,6 +89,15 @@ async function run() {
             res.send(result)
         })
 
+        // Get == A user and check role
+        app.get('/user', async(req, res) => {
+            const email = req.query.email;
+            const query = {email: email};
+            const result = await userCollection.findOne(query);
+            const isAdminOrInstructor = result && result.role === 'admin' || result.role === 'instructor';
+            res.send(isAdminOrInstructor);
+        })
+
         // classid, name, student email
         app.post('/selectClass', verifyJWT, async(req, res) => {
 

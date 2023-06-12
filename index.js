@@ -40,9 +40,12 @@ async function run() {
         // Collection of Database
         // Users Database
         const userCollection = client.db('usersDb').collection('users');
-        // Instructors DB
+        // Instructors Collection
         const instructorsCollection = client.db('instructorsDb').collection('instructors');
+        // Classes Collection
+        const classesCollection = client.db('classesDb').collection('classes');
 
+        // POST == a user while regirstratio or first time login using google, github, facebook ....
         app.post('/users', async(req, res) => {
             const user = req.body;
             const query = {email: user.email};
@@ -58,6 +61,14 @@ async function run() {
         app.get('/instructors', async(req, res) => {
             const result = await instructorsCollection.find().toArray();
             res.send(result);
+        });
+
+        // status:"approved"
+        // GET == All the approved classes
+        app.get('/classes', async(req, res) => {
+            const query = {status: "approved"};
+            const result = await classesCollection.find(query).toArray();
+            res.send(result)
         })
 
     } finally {

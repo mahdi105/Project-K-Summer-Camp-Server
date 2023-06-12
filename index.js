@@ -10,6 +10,22 @@ const jwt = require('jsonwebtoken');
 app.use(cors());
 app.use(express.json());// Request body parser
 
+const verifyJWT = (req, res, next) => {
+    const authorization = req.headers.authorization;
+    if(authorization){
+        return res.status(401).send({erro:true, message: 'Unauthorized Access'})
+    };
+    const token = authorization.split(' ')[1];
+    jwt.verify(token, process.env.TOKEN_SECRET_KEY, (err, decoded) =>{
+        if(err){
+            return res.status(401).send({error: true, message: "Unauthorized Access"});
+        }
+        req.decoded = decoded;
+        next();
+    })
+    
+}
+
 // // Enable CORS == Solve the proble 'Browser stop the fetch request or unable to fetch
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -44,6 +60,8 @@ async function run() {
         const instructorsCollection = client.db('instructorsDb').collection('instructors');
         // Classes Collection
         const classesCollection = client.db('classesDb').collection('classes');
+        // Selected Classes Collection by Student
+        const selectedClassesCollection = client.db('selectedClassesDb').collection('selectedClasses');
 
         // POST == a user while regirstratio or first time login using google, github, facebook ....
         app.post('/users', async(req, res) => {
@@ -69,6 +87,11 @@ async function run() {
             const query = {status: "approved"};
             const result = await classesCollection.find(query).toArray();
             res.send(result)
+        })
+
+        // classid, name, student email
+        app.post('/selectClass', verifyJWT, async(req, res) => {
+
         })
 
     } finally {

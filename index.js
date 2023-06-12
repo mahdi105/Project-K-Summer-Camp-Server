@@ -12,18 +12,17 @@ app.use(express.json());// Request body parser
 
 const verifyJWT = (req, res, next) => {
     const authorization = req.headers.authorization;
-    if(authorization){
-        return res.status(401).send({erro:true, message: 'Unauthorized Access'})
-    };
+    if (!authorization) {
+        return res.status(401).send({ error: true, message: 'Unauthorized access' });
+    }
     const token = authorization.split(' ')[1];
-    jwt.verify(token, process.env.TOKEN_SECRET_KEY, (err, decoded) =>{
-        if(err){
-            return res.status(401).send({error: true, message: "Unauthorized Access"});
+    jwt.verify(token, process.env.TOKEN_SECRET_KEY, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({ error: true, message: 'Unauthorized access' })
         }
         req.decoded = decoded;
         next();
     })
-    
 }
 
 // // Enable CORS == Solve the proble 'Browser stop the fetch request or unable to fetch
@@ -94,13 +93,20 @@ async function run() {
             const email = req.query.email;
             const query = {email: email};
             const result = await userCollection.findOne(query);
-            const isAdminOrInstructor = result && result.role === 'admin' || result.role === 'instructor';
+            const isAdminOrInstructor = result && result?.role && result?.role === 'admin' || result?.role === 'instructor';
             res.send(isAdminOrInstructor);
         })
 
-        // classid, name, student email
+        //Save a class to database that student select from the UI Classes Page or From Popular Classes.
         app.post('/selectClass', verifyJWT, async(req, res) => {
-
+            const data = req.body;
+            const query = {courseId: data.courseId};
+            const existCourse = await selectedClassesCollection.findOne(query);
+            if(existCourse){
+                return res.send({exist: true, message: 'Already selected'})
+            }
+            const result = await selectedClassesCollection.insertOne(data);
+            res.send(result);
         })
 
     } finally {

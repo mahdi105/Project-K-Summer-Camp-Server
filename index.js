@@ -100,12 +100,29 @@ async function run() {
         //Save a class to database that student select from the UI Classes Page or From Popular Classes.
         app.post('/selectClass', verifyJWT, async(req, res) => {
             const data = req.body;
+            const email = req.query.email;
+            const decodedMail = req.decoded.email;
+            if(email !== decodedMail){
+                return res.status(403).send({error: true, message: 'Forbidden Access'});
+            }
             const query = {courseId: data.courseId};
             const existCourse = await selectedClassesCollection.findOne(query);
             if(existCourse){
                 return res.send({exist: true, message: 'Already selected'})
             }
             const result = await selectedClassesCollection.insertOne(data);
+            res.send(result);
+        })
+
+        // Get== Selected classes by a users
+        app.get('/selectedClasses', verifyJWT, async(req, res) => {
+            const email = req.query.email;
+            const decodedMail = req.decoded.email;
+            if(email !== decodedMail){
+                return res.status(403).send({error:true, message: 'Forbidden Access'});
+            }
+            const query = {email: email};
+            const result = await selectedClassesCollection.find(query).toArray();
             res.send(result);
         })
 

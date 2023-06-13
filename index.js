@@ -5,6 +5,7 @@ require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 const jwt = require('jsonwebtoken');
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 
 // Middleware 
 app.use(cors());
@@ -126,10 +127,36 @@ async function run() {
             res.send(result);
         })
 
+        // DELETE = A selected class
         app.delete('/selectedClass/:id', verifyJWT, async(req, res) => {
             const id = req.params.id;
-            const filter = {id: new ObjectId(id)};
+            const filter = {_id: new ObjectId(id)};
             const result = await selectedClassesCollection.deleteOne(filter);
+            console.log(result);
+            res.send(result);
+        })
+
+        // Create a Payment intents
+        app.post('/create_payment_intent', verifyJWT, async(req, res) => {
+            const {price} = req.body;
+            if(price > 0){
+                const paymentIntent = await stripe.paymentIntents.create({
+                    amount: price,
+                    currency: "usd",
+                    payment_method_types: ['card'],
+                })
+
+                res.send({
+                    clientSecret: paymentIntent.client_secret,
+                });
+            }
+        })
+
+        // GET == A selected Class
+        app.get('/selectedClass/:id', async(req,res) => {
+            const id = req.params.id;
+            const query = {_id: new ObjectId(id)};
+            const result = await classesCollection.findOne(query);
             res.send(result);
         })
 

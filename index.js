@@ -64,6 +64,8 @@ async function run() {
         const selectedClassesCollection = client.db('selectedClassesDb').collection('selectedClasses');
         // Payment Information Collection
         const paymentInfoCollection = client.db('paymentsDb').collection('payments');
+        // Enrolled Classes Collection by user after successfull payment
+        const enrolledClassCollection = client.db('enrolledClassesDb').collection('enrolledClasses');
 
         // POST == a user while regirstratio or first time login using google, github, facebook ....
         app.post('/users', async (req, res) => {
@@ -92,7 +94,7 @@ async function run() {
         })
 
         // Get == A user and check role
-        app.get('/user', async (req, res) => {
+        app.get('/user',verifyJWT, async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
             const result = await userCollection.findOne(query);
@@ -134,7 +136,7 @@ async function run() {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const result = await selectedClassesCollection.deleteOne(filter);
-            console.log(result);
+
             res.send(result);
         })
 
@@ -166,11 +168,91 @@ async function run() {
             res.send(result);
         })
 
-        app.post('/paymentInfo', verifyJWT, async(req, res) => {
+        // POST == A payment as history in the history api
+        app.post('/paymentInfo', verifyJWT, async (req, res) => {
             const paymentInfo = req.body;
             const result = await paymentInfoCollection.insertOne(paymentInfo);
             res.send(result);
         })
+
+        // POST == An enrolled class to database
+        app.post('/enrolledClass', verifyJWT, async (req, res) => {
+            const { email, id } = req.body;
+            const filter = { _id: new ObjectId(id) };
+            const queryDelete = { courseId: id };
+            const currentClass = await classesCollection.findOne(filter);
+            // Remove a class from selected class selected by a user(student);
+            const removeSelectedClass = await selectedClassesCollection.deleteOne(queryDelete);
+
+            if (currentClass) {
+                const availableSeats = currentClass && currentClass?.availableSeats > 0 && currentClass?.availableSeats;
+                const numberOfStudents = currentClass && currentClass?.numberOfStudents;
+                const updatedClass = {
+                    $set: {
+                        availableSeats: availableSeats - 1,
+                        numberOfStudents: numberOfStudents + 1
+                    }
+                };
+                // Update a class(student Count and available seats) after payment completed by a student
+                const result = await classesCollection.updateOne(filter, updatedClass);
+                const newClass = await classesCollection.findOne(filter);
+
+                if (newClass) {
+                    const enrolledClass = {
+                        name: newClass.name,
+                        image: newClass.image,
+                        instructorName: newClass.instructorName,
+                        email: newClass.email,
+                        instructorImage: newClass.instructorImage,
+                        availableSeats: newClass.availableSeats,
+                        price: newClass.price,
+                        status: newClass.status,
+                        numberOfStudents: newClass.numberOfStudents,
+                        studentEmail: email,
+                    }
+                    const enrolledTheClass = await enrolledClassCollection.insertOne(enrolledClass);
+                    res.send(enrolledTheClass);
+                }
+            };
+        })
+
+        // GET == Enrolled Classes
+        app.get('/enrolledClasses', verifyJWT, async(req, res) => {
+            const email = req.query.email;
+            const query = {studentEmail: email};
+            const decodedMail = req.decoded.email;
+            if(email !== decodedMail){
+                return res.status(403).send({error: true, message: 'Forbidden Access'});
+            }
+            const result = await enrolledClassCollection.find(query).toArray();
+            res.send(result)
+        })
+
+        app.get('/paymentsHistory', verifyJWT, async(req, res) => {
+            const email = req.query.email;
+            const decodedMail = req.decoded.email;
+            if(email !== decodedMail){
+                return res.status(403).send({error: true, message: "Forbidden Access"});
+            }
+            const query = {email: email};
+            const result = await paymentInfoCollection.find(query).sort({timestamp:-1}).toArray();
+            res.send(result);
+        });
+
+        // Admin Checking
+        app.get('/users/admin/:email', verifyJWT, async(req, res) => {
+            const email = req.params.email;
+            const query = {email: email};
+            const decodedMail = req.decoded.email;
+            if(email !== decodedMail){
+                return res.send({admin: false})
+            };
+            const user = await userCollection.findOne(query);
+            const result = {admin: user?.role == 'admin'};
+            res.send(result);
+            console.log(result);
+        })
+
 
     } finally {
         // Ensures that the client will close when you finish/error

@@ -378,6 +378,13 @@ async function run() {
             res.send(result);
         })
 
+        // POST == a new class
+        app.post('/addClass', verifyJWT, verifyInstructor, async(req, res) => {
+            const classInfo = req.body;
+            const result = await classesCollection.insertOne(classInfo);
+            res.send(result);
+        })
+
 
     } finally {
         // Ensures that the client will close when you finish/error

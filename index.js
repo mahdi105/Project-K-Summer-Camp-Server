@@ -250,7 +250,19 @@ async function run() {
             const user = await userCollection.findOne(query);
             const result = {admin: user?.role == 'admin'};
             res.send(result);
-            console.log(result);
+        })
+
+        // Instructor Checking API
+        app.get('/users/instructor/:email', verifyJWT, async(req, res) => {
+            const email = req.params.email;
+            const decodedMail = req.decoded.email;
+            const query = {email: email};
+            if(email !== decodedMail){
+                return res.send({isInstructor: false});
+            }
+            const user = await userCollection.findOne(query);
+            const result = {isInstructor: user?.role == 'instructor'};
+            res.send(result);
         })
 
 

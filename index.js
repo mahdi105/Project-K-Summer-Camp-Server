@@ -5,7 +5,7 @@ require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 const jwt = require('jsonwebtoken');
-const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
 // Middleware 
 app.use(cors());
@@ -62,101 +62,113 @@ async function run() {
         const classesCollection = client.db('classesDb').collection('classes');
         // Selected Classes Collection by Student
         const selectedClassesCollection = client.db('selectedClassesDb').collection('selectedClasses');
+        // Payment Information Collection
+        const paymentInfoCollection = client.db('paymentsDb').collection('payments');
 
         // POST == a user while regirstratio or first time login using google, github, facebook ....
-        app.post('/users', async(req, res) => {
+        app.post('/users', async (req, res) => {
             const user = req.body;
-            const query = {email: user.email};
+            const query = { email: user.email };
             const existingUser = await userCollection.findOne(query);
-            if(existingUser){
-                return res.send({exist: true, message:"User is already stored"});
+            if (existingUser) {
+                return res.send({ exist: true, message: "User is already stored" });
             }
             const result = await userCollection.insertOne(user);
             res.send(result);
         })
 
         // GET == All instructors
-        app.get('/instructors', async(req, res) => {
+        app.get('/instructors', async (req, res) => {
             const result = await instructorsCollection.find().toArray();
             res.send(result);
         });
 
         // status:"approved"
         // GET == All the approved classes
-        app.get('/classes', async(req, res) => {
-            const query = {status: "approved"};
+        app.get('/classes', async (req, res) => {
+            const query = { status: "approved" };
             const result = await classesCollection.find(query).toArray();
             res.send(result)
         })
 
         // Get == A user and check role
-        app.get('/user', async(req, res) => {
+        app.get('/user', async (req, res) => {
             const email = req.query.email;
-            const query = {email: email};
+            const query = { email: email };
             const result = await userCollection.findOne(query);
             const isAdminOrInstructor = result && result?.role && result?.role === 'admin' || result?.role === 'instructor';
             res.send(isAdminOrInstructor);
         })
 
         //Save a class to database that student select from the UI Classes Page or From Popular Classes.
-        app.post('/selectClass', verifyJWT, async(req, res) => {
+        app.post('/selectClass', verifyJWT, async (req, res) => {
             const data = req.body;
             const email = req.query.email;
             const decodedMail = req.decoded.email;
-            if(email !== decodedMail){
-                return res.status(403).send({error: true, message: 'Forbidden Access'});
+            if (email !== decodedMail) {
+                return res.status(403).send({ error: true, message: 'Forbidden Access' });
             }
-            const query = {courseId: data.courseId};
+            const query = { courseId: data.courseId };
             const existCourse = await selectedClassesCollection.findOne(query);
-            if(existCourse){
-                return res.send({exist: true, message: 'Already selected'})
+            if (existCourse) {
+                return res.send({ exist: true, message: 'Already selected' })
             }
             const result = await selectedClassesCollection.insertOne(data);
             res.send(result);
         })
 
         // Get== Selected classes by a users
-        app.get('/selectedClasses', verifyJWT, async(req, res) => {
+        app.get('/selectedClasses', verifyJWT, async (req, res) => {
             const email = req.query.email;
             const decodedMail = req.decoded.email;
-            if(email !== decodedMail){
-                return res.status(403).send({error:true, message: 'Forbidden Access'});
+            if (email !== decodedMail) {
+                return res.status(403).send({ error: true, message: 'Forbidden Access' });
             }
-            const query = {email: email};
+            const query = { email: email };
             const result = await selectedClassesCollection.find(query).toArray();
             res.send(result);
         })
 
         // DELETE = A selected class
-        app.delete('/selectedClass/:id', verifyJWT, async(req, res) => {
+        app.delete('/selectedClass/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
-            const filter = {_id: new ObjectId(id)};
+            const filter = { _id: new ObjectId(id) };
             const result = await selectedClassesCollection.deleteOne(filter);
             console.log(result);
             res.send(result);
         })
 
         // Create a Payment intents
-        app.post('/create_payment_intent', verifyJWT, async(req, res) => {
-            const {price} = req.body;
-            if(price > 0){
-                const paymentIntent = await stripe.paymentIntents.create({
-                    amount: price,
-                    currency: "usd",
-                    payment_method_types: ['card'],
-                })
+        app.post('/create_payment_intent', verifyJWT, async (req, res) => {
+            const { price } = req.body;
 
-                res.send({
-                    clientSecret: paymentIntent.client_secret,
-                });
+            if (price !== false) {
+                if (price > 0) {
+                    const paymentIntent = await stripe.paymentIntents.create({
+                        amount: price * 100,
+                        currency: "usd",
+                        payment_method_types: ['card'],
+                    })
+
+                    res.send({
+                        clientSecret: paymentIntent.client_secret,
+                    });
+                }
+
             }
         })
 
         // GET == A selected Class
-        app.get('/selectedClass/:id', async(req,res) => {
+        app.get('/selectedClass/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await classesCollection.findOne(query);
+            res.send(result);
+        })
+
+        app.post('/paymentInfo', verifyJWT, async(req, res) => {
+            const paymentInfo = req.body;
+            const result = await paymentInfoCollection.insertOne(paymentInfo);
             res.send(result);
         })
 
@@ -171,7 +183,7 @@ run().catch(console.dir);
 // Sign A JSON WEB TOKEN
 app.post('/jwt', (req, res) => {
     const data = req.body;
-    const token = jwt.sign(data, process.env.TOKEN_SECRET_KEY, {expiresIn: '1d'});
+    const token = jwt.sign(data, process.env.TOKEN_SECRET_KEY, { expiresIn: '1d' });
     res.send(token)
 })
 

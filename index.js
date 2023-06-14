@@ -364,7 +364,18 @@ async function run() {
                 const result = await classesCollection.updateOne(filter, addFeedback);
                 return res.send(result);
             }
+        });
 
+        // Get == all classes a instructor posted
+        app.get('/myClasses', verifyJWT, verifyInstructor, async(req, res) => {
+            const email = req.query.email;
+            const decodedMail = req.decoded.email;
+            if(email !== decodedMail){
+                return res.status(403).send({error: true, message: 'Forbidden Access'});
+            }
+            const query = {email: email};
+            const result = await classesCollection.find(query).toArray();
+            res.send(result);
         })
 
 
